@@ -16,3 +16,7 @@ yarn-error.log*
 # the actual deployment are generated into public/data/ by
 # scripts/obfuscate-data.mjs.
 /data-source
+
+# Access codes, remote URLs, and deployment settings -- reference notes only,
+# never committed (nothing sensitive should be published to the public repo).
+/DEPLOYMENT-NOTES.md
