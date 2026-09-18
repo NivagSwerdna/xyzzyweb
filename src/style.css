@@ -84,8 +84,92 @@ body {
   padding: 12px 0;
 }
 
+.xyzzy-screen-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .status-bar[hidden] {
   display: none;
+}
+
+.save-toolbar {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+
+.save-toolbar button,
+.save-panel button {
+  font-family: var(--font);
+  font-size: 0.85rem;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: white;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.save-toolbar button:hover,
+.save-panel button:hover {
+  border-color: var(--accent);
+}
+
+.save-panel {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px;
+  margin-bottom: 8px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.save-panel-new {
+  display: flex;
+  gap: 8px;
+}
+
+.save-panel-name-input {
+  flex: 1;
+  font-family: var(--font);
+  font-size: 0.9rem;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: white;
+  color: var(--ink);
+}
+
+.save-panel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.save-panel-label {
+  flex: 1;
+}
+
+.save-panel-empty {
+  color: #666;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .save-toolbar button,
+  .save-panel button,
+  .save-panel,
+  .save-panel-name-input {
+    background: #232019;
+    color: var(--ink);
+  }
 }
 
 .status-bar {

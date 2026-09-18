@@ -40,6 +40,8 @@ export class DomScreen implements Screen {
 
   private pending: PendingRead | null = null
   private readingBuffer = ''
+  /** Lines queued programmatically (e.g. by Quicksave/Quickload buttons) ahead of real keyboard input. */
+  private commandQueue: string[] = []
 
   constructor(root: HTMLElement) {
     root.innerHTML = ''
@@ -74,10 +76,17 @@ export class DomScreen implements Screen {
     this.inputEl.disabled = true
     inputRow.append(prompt, this.inputEl)
 
-    root.append(this.statusBarEl, this.upperWindowEl, this.transcriptEl, inputRow)
+    // A dedicated wrapper (not `root` itself) so externally-mounted controls
+    // — e.g. the save toolbar/panel prepended into `root` by SavePanel.ts —
+    // aren't covered by the "click anywhere here refocuses the command
+    // input" behavior below and can receive their own clicks/focus normally.
+    const screenBody = document.createElement('div')
+    screenBody.className = 'xyzzy-screen-body'
+    screenBody.append(this.statusBarEl, this.upperWindowEl, this.transcriptEl, inputRow)
+    root.appendChild(screenBody)
 
     this.inputEl.addEventListener('keydown', (e) => this.handleKeydown(e))
-    root.addEventListener('click', () => this.inputEl.focus())
+    screenBody.addEventListener('click', () => this.inputEl.focus())
   }
 
   // ------------------------------------------------------------------ //
@@ -243,7 +252,31 @@ export class DomScreen implements Screen {
     return this.beginRead(true, timeTenths, timeRoutineCb)
   }
 
+  /**
+   * Feed a line into the interpreter as if the player had typed it and
+   * pressed Enter — used by UI controls (Quicksave/Quickload, the save
+   * panel) to drive the real SAVE/RESTORE opcodes without the player typing
+   * filenames. If a read is currently waiting on real input, resolves it
+   * immediately; otherwise the line is consumed by the next read call.
+   */
+  queueCommand(text: string): void {
+    this.commandQueue.push(text)
+    const pending = this.pending
+    if (pending && !pending.settled) {
+      this.commandQueue.shift()
+      if (!pending.isChar) this.appendTranscriptSegment(`> ${text}\n`)
+      this.settleRead(pending, text)
+    }
+  }
+
   private beginRead(isChar: boolean, timeTenths: number, timeRoutineCb?: () => Promise<boolean>): Promise<string> {
+    if (this.commandQueue.length > 0) {
+      const value = this.commandQueue.shift()!
+      if (!isChar) this.appendTranscriptSegment(`> ${value}\n`)
+      this.refresh()
+      return Promise.resolve(value)
+    }
+
     this.readingBuffer = ''
     this.inputEl.value = ''
     this.inputEl.disabled = false

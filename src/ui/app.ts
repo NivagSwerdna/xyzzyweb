@@ -4,6 +4,7 @@ import { QuitRequested, RestartRequested, UndoPerformed } from '../vm/errors'
 import { Header } from '../vm/Header'
 import { buildMachine } from '../vm/Machine'
 import type { Processor } from '../vm/Processor'
+import { mountSaveControls } from './SavePanel'
 
 interface GameEntry {
   id: string
@@ -78,6 +79,7 @@ async function launchGame(root: HTMLElement, game: GameEntry): Promise<void> {
   }
   const gameData = new Uint8Array(await response.arrayBuffer())
   const saveHandler = new IndexedDbSaveHandler(gameIdFor(gameData))
+  mountSaveControls(screenRoot, screen, saveHandler)
 
   screen.eraseWindow(0)
 
