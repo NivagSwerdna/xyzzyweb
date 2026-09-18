@@ -99,7 +99,7 @@ async function launchGame(root: HTMLElement, game: GameEntry): Promise<void> {
   const saveHandler = new IndexedDbSaveHandler(gameId)
   const mapTracker = new MapTracker(gameId)
   mountSaveControls(sidebar, screen, saveHandler)
-  mountMapControls(layout, sidebar, sidebar, mapTracker, game.title)
+  mountMapControls(sidebar, mapTracker, game.title)
   mountTranscriptControls(sidebar, screen, game.title)
 
   screen.eraseWindow(0)
