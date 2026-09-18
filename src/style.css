@@ -221,12 +221,29 @@ body {
   cursor: pointer;
 }
 
+.map-hint {
+  font-size: 0.8rem;
+  color: #666;
+  margin: 0;
+}
+
 .map-svg {
   width: 100%;
   height: auto;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: white;
+  touch-action: none;
+  user-select: none;
+}
+
+.map-background {
+  fill: white;
+  cursor: grab;
+}
+
+.map-node-group {
+  cursor: move;
 }
 
 .map-node {
@@ -235,15 +252,31 @@ body {
   stroke-width: 1.5;
 }
 
+.map-node--selected {
+  fill: #b02a2a;
+  stroke: #b02a2a;
+}
+
 .map-node-label {
   font-family: var(--font);
   font-size: 11px;
   fill: var(--ink);
+  pointer-events: none;
 }
 
 .map-edge {
   stroke: var(--border);
-  stroke-width: 1.5;
+  stroke-width: 2;
+  cursor: pointer;
+}
+
+.map-edge:hover {
+  stroke: var(--accent);
+}
+
+.map-edge--selected {
+  stroke: #b02a2a;
+  stroke-width: 3;
 }
 
 .map-list {
@@ -272,6 +305,11 @@ body {
   border-radius: 4px;
   background: white;
   cursor: pointer;
+}
+
+.map-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .save-panel[hidden] {
@@ -362,6 +400,10 @@ body {
 
   .save-panel-timestamp {
     color: #999;
+  }
+
+  .map-background {
+    fill: #232019;
   }
 }
 
