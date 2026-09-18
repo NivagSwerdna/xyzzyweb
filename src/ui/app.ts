@@ -2,8 +2,10 @@ import { DomScreen } from '../screen/DomScreen'
 import { IndexedDbSaveHandler } from '../storage/SaveStore'
 import { QuitRequested, RestartRequested, UndoPerformed } from '../vm/errors'
 import { Header } from '../vm/Header'
+import type { TurnObserver } from '../vm/Instructions'
 import { buildMachine } from '../vm/Machine'
 import type { Processor } from '../vm/Processor'
+import { isMapFeatureEnabled } from './featureFlags'
 import { mountGameControls } from './GameControls'
 import { MapTracker } from './MapTracker'
 import { mountMapControls } from './MapView'
@@ -97,16 +99,24 @@ async function launchGame(root: HTMLElement, game: GameEntry): Promise<void> {
   const gameData = new Uint8Array(await response.arrayBuffer())
   const gameId = gameIdFor(gameData)
   const saveHandler = new IndexedDbSaveHandler(gameId)
-  const mapTracker = new MapTracker(gameId)
   mountSaveControls(sidebar, screen, saveHandler)
-  mountMapControls(sidebar, mapTracker, game.title)
   mountTranscriptControls(sidebar, screen, game.title)
+
+  // The map is an optional feature (?lazymapper=1) — off by default, since
+  // an auto-drawn map can be an unwanted shortcut for students who are
+  // meant to be mapping the game themselves.
+  let turnObserver: TurnObserver | undefined
+  if (isMapFeatureEnabled()) {
+    const mapTracker = new MapTracker(gameId)
+    mountMapControls(sidebar, mapTracker, game.title)
+    turnObserver = mapTracker
+  }
 
   screen.eraseWindow(0)
 
   const build = (): Processor => {
     const processor = buildMachine({ gameData, screen, filename: game.file, saveHandler })
-    processor.instructions.turnObserver = mapTracker
+    processor.instructions.turnObserver = turnObserver
     return processor
   }
 
