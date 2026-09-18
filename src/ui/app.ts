@@ -6,6 +6,7 @@ import type { TurnObserver } from '../vm/Instructions'
 import { buildMachine } from '../vm/Machine'
 import type { Processor } from '../vm/Processor'
 import { isMapFeatureEnabled } from './featureFlags'
+import { clearStoredCode, currentAccess, tryUnlock } from './gameAccess'
 import { mountGameControls } from './GameControls'
 import { MapTracker } from './MapTracker'
 import { mountMapControls } from './MapView'
@@ -41,13 +42,27 @@ function showPicker(root: HTMLElement): void {
 
   const heading = document.createElement('h1')
   heading.textContent = 'xyzzy'
+  wrap.appendChild(heading)
+
+  const { gameIds } = currentAccess()
+  const unlockedGames = GAMES.filter((g) => gameIds.includes(g.id))
+
+  if (unlockedGames.length === 0) {
+    const tagline = document.createElement('p')
+    tagline.textContent = 'Your path to interactive fiction.'
+    wrap.appendChild(tagline)
+    wrap.appendChild(buildAccessForm(root))
+    root.appendChild(wrap)
+    return
+  }
+
   const subheading = document.createElement('p')
   subheading.textContent = 'Pick a game to play.'
-  wrap.append(heading, subheading)
+  wrap.appendChild(subheading)
 
   const list = document.createElement('ul')
   list.className = 'picker-list'
-  for (const game of GAMES) {
+  for (const game of unlockedGames) {
     const li = document.createElement('li')
     const button = document.createElement('button')
     button.type = 'button'
@@ -66,7 +81,55 @@ function showPicker(root: HTMLElement): void {
     list.appendChild(li)
   }
   wrap.appendChild(list)
+
+  const changeCode = document.createElement('button')
+  changeCode.type = 'button'
+  changeCode.className = 'picker-change-code'
+  changeCode.textContent = 'Not you? Change access code'
+  changeCode.addEventListener('click', () => {
+    clearStoredCode()
+    showPicker(root)
+  })
+  wrap.appendChild(changeCode)
+
   root.appendChild(wrap)
+}
+
+function buildAccessForm(root: HTMLElement): HTMLFormElement {
+  const form = document.createElement('form')
+  form.className = 'access-form'
+
+  const label = document.createElement('label')
+  label.textContent = 'Enter the access code your teacher gave you:'
+  label.htmlFor = 'access-code-input'
+
+  const input = document.createElement('input')
+  input.id = 'access-code-input'
+  input.type = 'password'
+  input.autocomplete = 'off'
+
+  const submit = document.createElement('button')
+  submit.type = 'submit'
+  submit.textContent = 'Unlock'
+
+  const error = document.createElement('p')
+  error.className = 'access-form-error'
+  error.textContent = "That code wasn't recognized."
+  error.hidden = true
+
+  form.append(label, input, submit, error)
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault()
+    const unlocked = tryUnlock(input.value)
+    if (unlocked.length > 0) {
+      showPicker(root)
+    } else {
+      error.hidden = false
+    }
+  })
+
+  return form
 }
 
 function gameIdFor(gameData: Uint8Array): string {

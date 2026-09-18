@@ -76,6 +76,62 @@ body {
   margin-top: 2px;
 }
 
+.access-form {
+  margin-top: 24px;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.access-form label {
+  font-size: 0.9rem;
+}
+
+.access-form input {
+  font-family: var(--font);
+  font-size: 1rem;
+  padding: 10px 12px;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  background: white;
+  color: var(--ink);
+}
+
+.access-form input:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.access-form button {
+  align-self: flex-start;
+  font-family: var(--font);
+  font-size: 0.95rem;
+  padding: 10px 18px;
+  border: 2px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+}
+
+.access-form-error {
+  color: #b02a2a !important;
+  font-size: 0.85rem;
+}
+
+.picker-change-code {
+  margin-top: 16px;
+  background: none;
+  border: none;
+  color: #666;
+  font-family: var(--font);
+  font-size: 0.8rem;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+
 .game-layout {
   flex: 1;
   min-height: 0;
@@ -533,7 +589,8 @@ body {
   }
 
   .transcript,
-  .picker-list button {
+  .picker-list button,
+  .access-form input {
     background: #232019;
   }
 
