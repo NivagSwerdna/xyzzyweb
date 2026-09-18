@@ -103,6 +103,5 @@ export function mountSaveControls(root: HTMLElement, screen: DomScreen, saveStor
     }
   }
 
-  root.prepend(panel)
-  root.prepend(bar)
+  root.append(bar, panel)
 }

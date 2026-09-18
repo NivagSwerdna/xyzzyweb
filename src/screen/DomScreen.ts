@@ -4,6 +4,7 @@ const UPPER_WINDOW_COLS = 80
 
 interface PendingRead {
   resolve: (value: string) => void
+  reject: (err: unknown) => void
   isChar: boolean
   timerId: ReturnType<typeof setInterval> | null
   settled: boolean
@@ -11,9 +12,13 @@ interface PendingRead {
 
 /**
  * Renders the interpreter into a status bar (V1-3) / upper-window character
- * grid (V4+) / scrollable transcript pane / bottom command-input line,
- * classic-IF style. Implements the async Screen contract: readLine/readChar
- * return a Promise that resolves from a real DOM keyboard event.
+ * grid (V4+) / scrollable transcript pane, classic-IF style. The command
+ * "cursor" is a real `<input>` positioned inline in the transcript flow
+ * (right after the "> " prompt, or invisibly inline for a bare read_char),
+ * not a separate box below — once submitted it freezes into plain text and
+ * a fresh input appears for the next turn, like a real terminal.
+ * Implements the async Screen contract: readLine/readChar return a Promise
+ * that resolves from a real DOM keyboard event.
  */
 export class DomScreen implements Screen {
   readonly supportsBold = true
@@ -26,7 +31,6 @@ export class DomScreen implements Screen {
   private readonly statusRightEl: HTMLElement
   private readonly upperWindowEl: HTMLElement
   private readonly transcriptEl: HTMLElement
-  private readonly inputEl: HTMLInputElement
 
   private currentWin = 0
   private upperRows = 0
@@ -39,9 +43,12 @@ export class DomScreen implements Screen {
   private pendingSpanStyle = -1
 
   private pending: PendingRead | null = null
-  private readingBuffer = ''
+  private activeInputEl: HTMLInputElement | null = null
   /** Lines queued programmatically (e.g. by Quicksave/Quickload buttons) ahead of real keyboard input. */
   private commandQueue: string[] = []
+
+  private transcriptLog = ''
+  private readonly transcriptListeners = new Set<() => void>()
 
   constructor(root: HTMLElement) {
     root.innerHTML = ''
@@ -63,30 +70,16 @@ export class DomScreen implements Screen {
     this.transcriptEl = document.createElement('div')
     this.transcriptEl.className = 'transcript'
 
-    const inputRow = document.createElement('div')
-    inputRow.className = 'input-row'
-    const prompt = document.createElement('span')
-    prompt.className = 'input-prompt'
-    prompt.textContent = '>'
-    this.inputEl = document.createElement('input')
-    this.inputEl.className = 'command-input'
-    this.inputEl.type = 'text'
-    this.inputEl.autocomplete = 'off'
-    this.inputEl.spellcheck = false
-    this.inputEl.disabled = true
-    inputRow.append(prompt, this.inputEl)
-
     // A dedicated wrapper (not `root` itself) so externally-mounted controls
     // — e.g. the save toolbar/panel prepended into `root` by SavePanel.ts —
     // aren't covered by the "click anywhere here refocuses the command
     // input" behavior below and can receive their own clicks/focus normally.
     const screenBody = document.createElement('div')
     screenBody.className = 'xyzzy-screen-body'
-    screenBody.append(this.statusBarEl, this.upperWindowEl, this.transcriptEl, inputRow)
+    screenBody.append(this.statusBarEl, this.upperWindowEl, this.transcriptEl)
     root.appendChild(screenBody)
 
-    this.inputEl.addEventListener('keydown', (e) => this.handleKeydown(e))
-    screenBody.addEventListener('click', () => this.inputEl.focus())
+    screenBody.addEventListener('click', () => this.activeInputEl?.focus())
   }
 
   // ------------------------------------------------------------------ //
@@ -111,6 +104,8 @@ export class DomScreen implements Screen {
       this.transcriptEl.appendChild(this.pendingSpan)
     }
     this.pendingSpan.appendChild(document.createTextNode(text))
+    this.transcriptLog += text
+    this.notifyTranscript()
   }
 
   private styleClass(style: number): string {
@@ -231,7 +226,8 @@ export class DomScreen implements Screen {
   }
 
   transcriptWrite(_s: string): void {
-    // Downloadable transcripts are a future enhancement; no-op for now.
+    // Actual transcript capture happens in appendTranscriptSegment/freezeActiveInput
+    // (below), which sees every character reaching the lower window already.
   }
 
   refresh(): void {
@@ -239,16 +235,32 @@ export class DomScreen implements Screen {
   }
 
   // ------------------------------------------------------------------ //
+  // Transcript export (Download/View Transcript in the sidebar)         //
+  // ------------------------------------------------------------------ //
+
+  getTranscript(): string {
+    return this.transcriptLog
+  }
+
+  /** Subscribe to transcript growth; returns an unsubscribe function. */
+  onTranscriptChange(cb: () => void): () => void {
+    this.transcriptListeners.add(cb)
+    return () => this.transcriptListeners.delete(cb)
+  }
+
+  private notifyTranscript(): void {
+    for (const l of this.transcriptListeners) l()
+  }
+
+  // ------------------------------------------------------------------ //
   // Input                                                                //
   // ------------------------------------------------------------------ //
 
   async readLine(_maxChars: number, timeTenths = 0, timeRoutineCb?: () => Promise<boolean>): Promise<string> {
-    this.refresh()
     return this.beginRead(false, timeTenths, timeRoutineCb)
   }
 
   async readChar(timeTenths = 0, timeRoutineCb?: () => Promise<boolean>): Promise<string> {
-    this.refresh()
     return this.beginRead(true, timeTenths, timeRoutineCb)
   }
 
@@ -257,74 +269,131 @@ export class DomScreen implements Screen {
    * pressed Enter — used by UI controls (Quicksave/Quickload, the save
    * panel) to drive the real SAVE/RESTORE opcodes without the player typing
    * filenames. If a read is currently waiting on real input, resolves it
-   * immediately; otherwise the line is consumed by the next read call.
+   * immediately (freezing the live input with the injected text, exactly as
+   * if the player had typed it); otherwise the line is consumed by the next
+   * read call.
    */
   queueCommand(text: string): void {
     this.commandQueue.push(text)
     const pending = this.pending
     if (pending && !pending.settled) {
       this.commandQueue.shift()
-      if (!pending.isChar) this.appendTranscriptSegment(`> ${text}\n`)
-      this.settleRead(pending, text)
+      this.settlePending(pending, text, !pending.isChar)
+    }
+  }
+
+  /** Abruptly end whatever read is pending, e.g. for "Quit to Menu". */
+  abort(error: Error): void {
+    const pending = this.pending
+    if (pending && !pending.settled) {
+      pending.settled = true
+      if (pending.timerId !== null) clearInterval(pending.timerId)
+      this.pending = null
+      if (this.activeInputEl) this.activeInputEl.disabled = true
+      pending.reject(error)
     }
   }
 
   private beginRead(isChar: boolean, timeTenths: number, timeRoutineCb?: () => Promise<boolean>): Promise<string> {
     if (this.commandQueue.length > 0) {
       const value = this.commandQueue.shift()!
-      if (!isChar) this.appendTranscriptSegment(`> ${value}\n`)
+      if (!isChar) this.appendFrozenLine(value)
       this.refresh()
       return Promise.resolve(value)
     }
 
-    this.readingBuffer = ''
-    this.inputEl.value = ''
-    this.inputEl.disabled = false
-    this.inputEl.focus()
+    const input = this.appendLiveInput(isChar)
+    this.activeInputEl = input
+    input.focus()
+    this.refresh()
 
-    return new Promise<string>((resolve) => {
-      const pending: PendingRead = { resolve, isChar, timerId: null, settled: false }
+    return new Promise<string>((resolve, reject) => {
+      const pending: PendingRead = { resolve, reject, isChar, timerId: null, settled: false }
       this.pending = pending
+
+      input.addEventListener('keydown', (e) => {
+        if (pending.settled) return
+        if (isChar) {
+          e.preventDefault()
+          const ch = e.key === 'Enter' ? '\r' : e.key.length === 1 ? e.key : ''
+          this.settlePending(pending, ch, false)
+        } else if (e.key === 'Enter') {
+          e.preventDefault()
+          this.settlePending(pending, input.value, true)
+        }
+      })
 
       if (timeTenths > 0 && timeRoutineCb) {
         pending.timerId = setInterval(() => {
           void (async () => {
             const stop = await timeRoutineCb()
-            if (stop) this.settleRead(pending, this.readingBuffer)
+            if (stop) this.settlePending(pending, input.value, !isChar)
           })()
         }, timeTenths * 100)
       }
     })
   }
 
-  private settleRead(pending: PendingRead, value: string): void {
+  private settlePending(pending: PendingRead, value: string, echo: boolean): void {
     if (pending.settled) return
     pending.settled = true
     if (pending.timerId !== null) clearInterval(pending.timerId)
-    if (this.pending === pending) {
-      this.pending = null
-      this.inputEl.disabled = true
-      this.inputEl.value = ''
-    }
+    if (this.pending === pending) this.pending = null
+    this.freezeActiveInput(echo ? value : null)
     pending.resolve(value)
   }
 
-  private handleKeydown(e: KeyboardEvent): void {
-    const pending = this.pending
-    if (!pending) return
+  /**
+   * Append an already-submitted line of text (used for queued/programmatic
+   * input). No prompt character is added here — Infocom games print their
+   * own "> " before reading, so the injected text just continues right
+   * after whatever the game already printed.
+   */
+  private appendFrozenLine(value: string): void {
+    const span = document.createElement('span')
+    span.className = 'submitted-text'
+    span.textContent = value + '\n'
+    this.transcriptEl.appendChild(span)
+    this.pendingSpan = null
 
-    if (pending.isChar) {
-      e.preventDefault()
-      const ch = e.key === 'Enter' ? '\r' : e.key.length === 1 ? e.key : ''
-      this.settleRead(pending, ch)
+    this.transcriptLog += `${value}\n`
+    this.notifyTranscript()
+  }
+
+  /**
+   * Append a live, focused `<input>` positioned inline right after the last
+   * printed text — e.g. immediately after the game's own "> " prompt for a
+   * full command, or right where a read_char wait should show its cursor.
+   * No prompt character is synthesized here for the same reason as above.
+   */
+  private appendLiveInput(isChar: boolean): HTMLInputElement {
+    const input = document.createElement('input')
+    input.autocomplete = 'off'
+    input.spellcheck = false
+    input.type = 'text'
+    input.className = isChar ? 'char-input' : 'command-input'
+    this.transcriptEl.appendChild(input)
+    this.pendingSpan = null
+    return input
+  }
+
+  /** Freeze the currently-live input into plain scrollback text (or remove it if not echoed). */
+  private freezeActiveInput(value: string | null): void {
+    const input = this.activeInputEl
+    if (!input) return
+    this.activeInputEl = null
+
+    if (value === null || input.className === 'char-input') {
+      input.remove()
       return
     }
 
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      const value = this.inputEl.value
-      this.appendTranscriptSegment(`> ${value}\n`)
-      this.settleRead(pending, value)
-    }
+    const span = document.createElement('span')
+    span.className = 'submitted-text'
+    span.textContent = value + '\n'
+    input.replaceWith(span)
+
+    this.transcriptLog += `${value}\n`
+    this.notifyTranscript()
   }
 }

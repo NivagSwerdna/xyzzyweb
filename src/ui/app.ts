@@ -4,7 +4,12 @@ import { QuitRequested, RestartRequested, UndoPerformed } from '../vm/errors'
 import { Header } from '../vm/Header'
 import { buildMachine } from '../vm/Machine'
 import type { Processor } from '../vm/Processor'
+import { mountGameControls } from './GameControls'
 import { mountSaveControls } from './SavePanel'
+import { mountTranscriptControls } from './TranscriptPanel'
+
+/** Thrown by the "Quit to Menu" button to unwind the run loop cleanly. */
+class ReturnToMenu extends Error {}
 
 interface GameEntry {
   id: string
@@ -80,6 +85,8 @@ async function launchGame(root: HTMLElement, game: GameEntry): Promise<void> {
   const screen = new DomScreen(screenRoot)
   screen.printStr(`Loading ${game.title}...\n`)
 
+  mountGameControls(sidebar, () => screen.abort(new ReturnToMenu()))
+
   const response = await fetch(`data/${game.file}`)
   if (!response.ok) {
     screen.printStr(`\n[Could not load ${game.file}: HTTP ${response.status}]\n`)
@@ -88,15 +95,18 @@ async function launchGame(root: HTMLElement, game: GameEntry): Promise<void> {
   const gameData = new Uint8Array(await response.arrayBuffer())
   const saveHandler = new IndexedDbSaveHandler(gameIdFor(gameData))
   mountSaveControls(sidebar, screen, saveHandler)
+  mountTranscriptControls(sidebar, screen, game.title)
 
   screen.eraseWindow(0)
 
   const build = (): Processor => buildMachine({ gameData, screen, filename: game.file, saveHandler })
 
-  await runLoop(build(), build, screen)
+  const returnedToMenu = await runLoop(build(), build, screen)
+  if (returnedToMenu) showPicker(root)
 }
 
-async function runLoop(initialProcessor: Processor, rebuild: () => Processor, screen: DomScreen): Promise<void> {
+/** Returns true if the loop ended because the player chose "Quit to Menu". */
+async function runLoop(initialProcessor: Processor, rebuild: () => Processor, screen: DomScreen): Promise<boolean> {
   let processor = initialProcessor
 
   while (true) {
@@ -113,12 +123,15 @@ async function runLoop(initialProcessor: Processor, rebuild: () => Processor, sc
         continue
       }
       if (e instanceof QuitRequested) {
-        screen.printStr('\n[The game has ended. Refresh the page to play again.]\n')
-        break
+        screen.printStr('\n[The game has ended. Choose "Quit to Menu" to play again.]\n')
+        return false
+      }
+      if (e instanceof ReturnToMenu) {
+        return true
       }
       console.error(e)
       screen.printStr(`\n[Interpreter error: ${e instanceof Error ? e.message : String(e)}]\n`)
-      break
+      return false
     }
   }
 }

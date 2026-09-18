@@ -142,6 +142,35 @@ body {
   border-color: var(--accent);
 }
 
+.quit-button {
+  color: #8a2f2f;
+  border-color: #cfa8a8 !important;
+}
+
+.quit-button:hover {
+  border-color: #8a2f2f !important;
+}
+
+.game-sidebar > .save-toolbar:not(:first-child) {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.transcript-viewer {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px;
+  background: white;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 0;
+}
+
 .save-panel {
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -214,7 +243,8 @@ body {
   .save-toolbar button,
   .save-panel button,
   .save-panel,
-  .save-panel-name-input {
+  .save-panel-name-input,
+  .transcript-viewer {
     background: #232019;
     color: var(--ink);
   }
@@ -288,33 +318,43 @@ body {
   color: var(--bg);
 }
 
-.input-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  background: white;
-  border: 1px solid var(--border);
-  border-top: none;
+.submitted-text {
+  white-space: pre-wrap;
 }
 
-.input-prompt {
-  color: var(--accent);
-  font-weight: bold;
-}
-
+/* Infocom games print their own "> " prompt before reading, so the live
+   input just continues inline right after it — no prompt is added here. */
 .command-input {
-  flex: 1;
+  width: 40ch;
+  max-width: 100%;
   border: none;
   outline: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
   font-family: var(--font);
   font-size: 1rem;
+  line-height: inherit;
   background: transparent;
   color: var(--ink);
 }
 
 .command-input:disabled {
   color: #999;
+}
+
+/* An invisible single-character input used for read_char ("press any key")
+   waits — inline with no box, so it doesn't disturb the surrounding text
+   but still holds real keyboard focus at the cursor position. */
+.char-input {
+  width: 1px;
+  height: 1em;
+  padding: 0;
+  margin: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  opacity: 0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -326,7 +366,6 @@ body {
   }
 
   .transcript,
-  .input-row,
   .picker-list button {
     background: #232019;
   }
