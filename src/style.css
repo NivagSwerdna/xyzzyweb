@@ -1,0 +1,183 @@
+:root {
+  color-scheme: light;
+  --bg: #f4f1ea;
+  --ink: #1c1a15;
+  --accent: #6b3fa0;
+  --border: #cfc6b0;
+  --font: 'Courier New', ui-monospace, Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+}
+
+#app {
+  max-width: 900px;
+  margin: 0 auto;
+  height: 100vh;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.picker {
+  padding: 32px 0;
+}
+
+.picker h1 {
+  font-size: 1.4rem;
+  margin-bottom: 4px;
+}
+
+.picker p {
+  color: #555;
+  margin-top: 0;
+}
+
+.picker-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.picker-list button {
+  width: 100%;
+  text-align: left;
+  padding: 14px 16px;
+  font-family: var(--font);
+  font-size: 1rem;
+  background: white;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.picker-list button:hover,
+.picker-list button:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.picker-list .subtitle {
+  display: block;
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 2px;
+}
+
+.xyzzy-screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 0;
+}
+
+.status-bar[hidden] {
+  display: none;
+}
+
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  background: var(--accent);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px 4px 0 0;
+  font-size: 0.9rem;
+}
+
+.upper-window {
+  margin: 0;
+  background: #2b2620;
+  color: #e8e2d0;
+  padding: 8px 12px;
+  white-space: pre;
+  overflow: hidden;
+  border-radius: 0 0 4px 4px;
+}
+
+.transcript {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.4;
+  padding: 12px;
+  background: white;
+  border: 1px solid var(--border);
+}
+
+.style-bold {
+  font-weight: bold;
+}
+
+.style-italic {
+  font-style: italic;
+}
+
+.style-reverse {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: white;
+  border: 1px solid var(--border);
+  border-top: none;
+}
+
+.input-prompt {
+  color: var(--accent);
+  font-weight: bold;
+}
+
+.command-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-family: var(--font);
+  font-size: 1rem;
+  background: transparent;
+  color: var(--ink);
+}
+
+.command-input:disabled {
+  color: #999;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #1b1a17;
+    --ink: #e8e2d0;
+    --border: #45403a;
+  }
+
+  .transcript,
+  .input-row,
+  .picker-list button {
+    background: #232019;
+  }
+
+  .style-reverse {
+    background: var(--ink);
+    color: var(--bg);
+  }
+}
