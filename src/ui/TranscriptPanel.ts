@@ -1,4 +1,5 @@
 import type { DomScreen } from '../screen/DomScreen'
+import { downloadText } from './download'
 
 function button(label: string, onClick: () => void): HTMLButtonElement {
   const b = document.createElement('button')
@@ -6,16 +7,6 @@ function button(label: string, onClick: () => void): HTMLButtonElement {
   b.textContent = label
   b.addEventListener('click', onClick)
   return b
-}
-
-function downloadText(fileName: string, text: string): void {
-  const blob = new Blob([text], { type: 'text/plain' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = fileName
-  a.click()
-  URL.revokeObjectURL(url)
 }
 
 /**

@@ -5,6 +5,8 @@ import { Header } from '../vm/Header'
 import { buildMachine } from '../vm/Machine'
 import type { Processor } from '../vm/Processor'
 import { mountGameControls } from './GameControls'
+import { MapTracker } from './MapTracker'
+import { mountMapControls } from './MapView'
 import { mountSaveControls } from './SavePanel'
 import { mountTranscriptControls } from './TranscriptPanel'
 
@@ -93,13 +95,20 @@ async function launchGame(root: HTMLElement, game: GameEntry): Promise<void> {
     return
   }
   const gameData = new Uint8Array(await response.arrayBuffer())
-  const saveHandler = new IndexedDbSaveHandler(gameIdFor(gameData))
+  const gameId = gameIdFor(gameData)
+  const saveHandler = new IndexedDbSaveHandler(gameId)
+  const mapTracker = new MapTracker(gameId)
   mountSaveControls(sidebar, screen, saveHandler)
+  mountMapControls(sidebar, mapTracker, game.title)
   mountTranscriptControls(sidebar, screen, game.title)
 
   screen.eraseWindow(0)
 
-  const build = (): Processor => buildMachine({ gameData, screen, filename: game.file, saveHandler })
+  const build = (): Processor => {
+    const processor = buildMachine({ gameData, screen, filename: game.file, saveHandler })
+    processor.instructions.turnObserver = mapTracker
+    return processor
+  }
 
   const returnedToMenu = await runLoop(build(), build, screen)
   if (returnedToMenu) showPicker(root)

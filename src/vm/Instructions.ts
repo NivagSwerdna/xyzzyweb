@@ -22,6 +22,21 @@ export interface SaveHandler {
   restore(slotName: string): Promise<Uint8Array | null>
 }
 
+/**
+ * Notified once per real player command with a room-to-room transition
+ * (used to build the live map). fromLocation is null on the very first
+ * turn (nothing to compare against yet); either label can be null if the
+ * current location couldn't be determined for this game.
+ */
+export interface TurnObserver {
+  onTurn(fromLocation: string | null, toLocation: string | null, command: string): void
+}
+
+// Common short names Infocom games give the player object, used by the V4+
+// location-detection heuristic below (mirrors the Python interpreter's
+// _find_player_object).
+const PLAYER_NAMES = new Set(['yourself', 'you', 'self', 'me', 'adventurer', 'hero', 'cretin', 'player', 'i'])
+
 interface InterpUndoSnapshot {
   pc: number
   memory: Uint8Array
@@ -37,6 +52,7 @@ export class Instructions {
   readonly dictionary: DictionaryTable
   readonly screen: Screen
   saveHandler?: SaveHandler
+  turnObserver?: TurnObserver
 
   random = 0x1234
 
@@ -54,6 +70,12 @@ export class Instructions {
 
   private currentOpcodePc = 0
   private lastSavePath: string | null = null
+
+  // Map-tracking state (only touched when turnObserver is set).
+  private mapPrevLocation: string | null = null
+  private mapPrevCommand: string | null = null
+  private playerObjNum: number | null = null
+  private playerCandidates: number[] | null = null
 
   private readonly op0Functions: OpcodeHandler[]
   private readonly op1Functions: OpcodeHandler[]
@@ -646,6 +668,18 @@ export class Instructions {
     this.saveInterpUndo()
     this.refreshStatusLine()
 
+    // Map tracking: check whether the command from the PREVIOUS turn caused
+    // a room transition, then refresh the location baseline for this turn.
+    if (this.turnObserver && this.mapPrevCommand !== null) {
+      const newLoc = this.currentLocationLabel()
+      if (newLoc && this.mapPrevLocation && newLoc !== this.mapPrevLocation) {
+        this.turnObserver.onTurn(this.mapPrevLocation, newLoc, this.mapPrevCommand)
+      }
+    }
+    if (this.turnObserver) {
+      this.mapPrevLocation = this.currentLocationLabel()
+    }
+
     const textAddr = args[0]!
     const parseAddr = args.length > 1 ? args[1]! : null
     const timeTenths = args.length > 2 ? args[2]! : 0
@@ -694,6 +728,94 @@ export class Instructions {
     if (this.processor.gameVersion >= 5) {
       this.processor.store(13) // V5+ aread stores terminating character; V4 sread does not
     }
+
+    if (this.turnObserver) {
+      this.mapPrevCommand = inString
+    }
+  }
+
+  // ---------------------------------------------------------------------- //
+  // Map tracking helpers                                                    //
+  // ---------------------------------------------------------------------- //
+
+  /**
+   * Best-effort label for the player's current room, or null if it can't be
+   * determined. V1-3: global 0 IS the room (Z-Machine spec section 8.2).
+   * V4+: find the player object (named "yourself"/"you"/etc.) and use its
+   * parent. Mirrors the Python interpreter's _current_location_str.
+   */
+  private currentLocationLabel(): string | null {
+    try {
+      const objectCount = this.processor.objectTable.objectCount
+      if (this.processor.gameVersion <= 3) {
+        const num = this.processor.globals.readGlobal(0)
+        return this.objLocationLabel(num, objectCount)
+      }
+
+      const playerNum = this.findPlayerObject(objectCount)
+      if (playerNum) {
+        const player = this.processor.objectTable.getObjectTableEntry(playerNum)
+        const roomNum = player?.getParentObjectNumber() ?? 0
+        if (roomNum) {
+          const room = this.processor.objectTable.getObjectTableEntry(roomNum)
+          const name = room?.getPropertyTable().getDescription().trim()
+          if (name) return `${roomNum}: ${name}`
+        }
+      }
+      return null
+    } catch {
+      return null
+    }
+  }
+
+  private objLocationLabel(objNum: number, objectCount: number): string | null {
+    if (objNum < 1 || objNum > objectCount) return null
+    const obj = this.processor.objectTable.getObjectTableEntry(objNum)
+    if (!obj) return null
+    const name = obj.getPropertyTable().getDescription().trim()
+    return name.length >= 4 ? `${objNum}: ${name}` : null
+  }
+
+  /**
+   * Scans the object table once for candidate player objects (named
+   * "yourself", "you", etc.), then picks whichever currently has a named
+   * parent (the room it's standing in). Only caches permanently once a
+   * confirmed live player is found, matching the Python original.
+   */
+  private findPlayerObject(objectCount: number): number | null {
+    if (this.playerObjNum !== null) return this.playerObjNum
+
+    if (this.playerCandidates === null) {
+      this.playerCandidates = []
+      for (let n = 1; n <= objectCount; n++) {
+        try {
+          const obj = this.processor.objectTable.getObjectTableEntry(n)
+          if (!obj) continue
+          const desc = obj.getPropertyTable().getDescription().trim().toLowerCase()
+          if (PLAYER_NAMES.has(desc)) this.playerCandidates.push(n)
+        } catch {
+          // Skip malformed object entries.
+        }
+      }
+    }
+
+    for (const n of this.playerCandidates) {
+      try {
+        const obj = this.processor.objectTable.getObjectTableEntry(n)
+        const parentNum = obj?.getParentObjectNumber() ?? 0
+        if (parentNum) {
+          const p = this.processor.objectTable.getObjectTableEntry(parentNum)
+          if (p && p.getPropertyTable().getDescription().trim()) {
+            this.playerObjNum = n // confirmed — cache it
+            return n
+          }
+        }
+      } catch {
+        // Try the next candidate.
+      }
+    }
+
+    return this.playerCandidates[0] ?? null
   }
 
   private async instructionReadChar(args: readonly number[]): Promise<void> {

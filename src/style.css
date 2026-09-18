@@ -171,6 +171,113 @@ body {
   margin: 0;
 }
 
+.map-overlay[hidden] {
+  display: none;
+}
+
+.map-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  padding: 24px;
+}
+
+.map-panel {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  max-width: 900px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.map-panel-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.map-panel-header h2 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.map-panel-header button {
+  font-family: var(--font);
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+}
+
+.map-svg {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: white;
+}
+
+.map-node {
+  fill: var(--accent);
+  stroke: white;
+  stroke-width: 1.5;
+}
+
+.map-node-label {
+  font-family: var(--font);
+  font-size: 11px;
+  fill: var(--ink);
+}
+
+.map-edge {
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+
+.map-list {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px;
+  background: white;
+  margin: 0;
+}
+
+.map-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.map-actions button {
+  font-family: var(--font);
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+}
+
+.save-panel[hidden] {
+  display: none;
+}
+
 .save-panel {
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -244,7 +351,11 @@ body {
   .save-panel button,
   .save-panel,
   .save-panel-name-input,
-  .transcript-viewer {
+  .transcript-viewer,
+  .map-panel-header button,
+  .map-actions button,
+  .map-svg,
+  .map-list {
     background: #232019;
     color: var(--ink);
   }

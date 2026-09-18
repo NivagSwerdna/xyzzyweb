@@ -1,7 +1,7 @@
 import { HeadlessScreen, StopExecution } from '../../src/screen/HeadlessScreen'
 import { QuitRequested, UndoPerformed } from '../../src/vm/errors'
 import { buildMachine } from '../../src/vm/Machine'
-import type { SaveHandler } from '../../src/vm/Instructions'
+import type { SaveHandler, TurnObserver } from '../../src/vm/Instructions'
 
 export interface RunHeadlessResult {
   screen: HeadlessScreen
@@ -12,11 +12,12 @@ export interface RunHeadlessResult {
 export async function runHeadless(
   gameData: Uint8Array,
   commands: readonly string[],
-  options: { seed?: number; maxSteps?: number; saveHandler?: SaveHandler } = {},
+  options: { seed?: number; maxSteps?: number; saveHandler?: SaveHandler; turnObserver?: TurnObserver } = {},
 ): Promise<RunHeadlessResult> {
-  const { seed, maxSteps = 2_000_000, saveHandler } = options
+  const { seed, maxSteps = 2_000_000, saveHandler, turnObserver } = options
   const screen = new HeadlessScreen(commands)
   const processor = buildMachine({ gameData, screen, filename: 'test.dat', seed, saveHandler })
+  if (turnObserver) processor.instructions.turnObserver = turnObserver
 
   let steps = 0
   while (steps < maxSteps) {
