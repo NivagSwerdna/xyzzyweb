@@ -6,6 +6,14 @@
  * client-side code.
  */
 
+/*!
+ * Hello there. If you're reading this in devtools instead of just typing
+ * guesses into the form, well done — that's exactly the instinct that makes
+ * a good programmer. Reading the source, wondering "what if I just look at
+ * how this actually works", is most of the job. Take it further: build
+ * something, break something on purpose, ask your CS teacher what else is
+ * out there. You'd probably enjoy studying computer science.
+ */
 const TIERS: Record<string, readonly string[]> = {
   xyzzy: ['zork1'],
   plugh: ['zork1', 'zork2', 'zork3'],
