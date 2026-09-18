@@ -67,8 +67,16 @@ function gameIdFor(gameData: Uint8Array): string {
 
 async function launchGame(root: HTMLElement, game: GameEntry): Promise<void> {
   root.innerHTML = ''
+
+  const layout = document.createElement('div')
+  layout.className = 'game-layout'
   const screenRoot = document.createElement('div')
-  root.appendChild(screenRoot)
+  screenRoot.className = 'game-main'
+  const sidebar = document.createElement('div')
+  sidebar.className = 'game-sidebar'
+  layout.append(screenRoot, sidebar)
+  root.appendChild(layout)
+
   const screen = new DomScreen(screenRoot)
   screen.printStr(`Loading ${game.title}...\n`)
 
@@ -79,7 +87,7 @@ async function launchGame(root: HTMLElement, game: GameEntry): Promise<void> {
   }
   const gameData = new Uint8Array(await response.arrayBuffer())
   const saveHandler = new IndexedDbSaveHandler(gameIdFor(gameData))
-  mountSaveControls(screenRoot, screen, saveHandler)
+  mountSaveControls(sidebar, screen, saveHandler)
 
   screen.eraseWindow(0)
 

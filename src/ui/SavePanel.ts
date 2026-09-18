@@ -80,8 +80,15 @@ export function mountSaveControls(root: HTMLElement, screen: DomScreen, saveStor
 
       const label = document.createElement('span')
       label.className = 'save-panel-label'
-      label.textContent = `${s.slot} — ${new Date(s.savedAt).toLocaleString()}`
+      label.title = new Date(s.savedAt).toLocaleString()
+      label.textContent = s.slot
 
+      const timestamp = document.createElement('span')
+      timestamp.className = 'save-panel-timestamp'
+      timestamp.textContent = new Date(s.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+
+      const actions = document.createElement('div')
+      actions.className = 'save-panel-row-actions'
       const loadBtn = button('Load', () => {
         screen.queueCommand('restore')
         screen.queueCommand(s.slot)
@@ -89,8 +96,9 @@ export function mountSaveControls(root: HTMLElement, screen: DomScreen, saveStor
       const deleteBtn = button('Delete', () => {
         void saveStore.delete(s.slot).then(refreshPanel)
       })
+      actions.append(loadBtn, deleteBtn)
 
-      row.append(label, loadBtn, deleteBtn)
+      row.append(label, timestamp, actions)
       panel.appendChild(row)
     }
   }

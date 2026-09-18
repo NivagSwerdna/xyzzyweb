@@ -21,7 +21,7 @@ body {
 }
 
 #app {
-  max-width: 900px;
+  max-width: 1100px;
   margin: 0 auto;
   height: 100vh;
   padding: 0 16px;
@@ -76,12 +76,31 @@ body {
   margin-top: 2px;
 }
 
-.xyzzy-screen {
+.game-layout {
   flex: 1;
   min-height: 0;
   display: flex;
-  flex-direction: column;
+  gap: 16px;
   padding: 12px 0;
+}
+
+.game-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.game-sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.xyzzy-screen {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .xyzzy-screen-body {
@@ -97,8 +116,8 @@ body {
 
 .save-toolbar {
   display: flex;
-  gap: 8px;
-  padding-bottom: 8px;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .save-toolbar button,
@@ -113,6 +132,11 @@ body {
   cursor: pointer;
 }
 
+.save-toolbar button {
+  width: 100%;
+  text-align: left;
+}
+
 .save-toolbar button:hover,
 .save-panel button:hover {
   border-color: var(--accent);
@@ -122,20 +146,24 @@ body {
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 10px;
-  margin-bottom: 8px;
   background: white;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  overflow-y: auto;
 }
 
 .save-panel-new {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.save-panel-new button {
+  width: 100%;
 }
 
 .save-panel-name-input {
-  flex: 1;
   font-family: var(--font);
   font-size: 0.9rem;
   padding: 6px 8px;
@@ -143,16 +171,36 @@ body {
   border-radius: 4px;
   background: white;
   color: var(--ink);
+  width: 100%;
 }
 
 .save-panel-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
 }
 
 .save-panel-label {
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.save-panel-timestamp {
+  color: #666;
+  font-size: 0.75rem;
+}
+
+.save-panel-row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.save-panel-row-actions button {
   flex: 1;
 }
 
@@ -169,6 +217,29 @@ body {
   .save-panel-name-input {
     background: #232019;
     color: var(--ink);
+  }
+
+  .save-panel-timestamp {
+    color: #999;
+  }
+}
+
+@media (max-width: 700px) {
+  .game-layout {
+    flex-direction: column;
+  }
+
+  .game-sidebar {
+    width: 100%;
+  }
+
+  .save-toolbar {
+    flex-direction: row;
+  }
+
+  .save-toolbar button {
+    width: auto;
+    flex: 1;
   }
 }
 
