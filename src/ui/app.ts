@@ -7,6 +7,7 @@ import { buildMachine } from '../vm/Machine'
 import type { Processor } from '../vm/Processor'
 import { isMapFeatureEnabled } from './featureFlags'
 import { clearStoredCode, currentAccess, tryUnlock } from './gameAccess'
+import { GAMES, xorFF, type GameEntry } from './games'
 import { mountGameControls } from './GameControls'
 import { MapTracker } from './MapTracker'
 import { mountMapControls } from './MapView'
@@ -15,20 +16,6 @@ import { mountTranscriptControls } from './TranscriptPanel'
 
 /** Thrown by the "Quit to Menu" button to unwind the run loop cleanly. */
 class ReturnToMenu extends Error {}
-
-interface GameEntry {
-  id: string
-  title: string
-  file: string
-}
-
-const GAMES: GameEntry[] = [
-  { id: 'zork1', title: 'Zork I: The Great Underground Empire', file: 'ZORK1.DAT' },
-  { id: 'zork2', title: 'Zork II: The Wizard of Frobozz', file: 'ZORK2.DAT' },
-  { id: 'zork3', title: 'Zork III: The Dungeon Master', file: 'ZORK3.DAT' },
-  { id: 'deadline', title: 'Deadline', file: 'DEADLINE.DAT' },
-  { id: 'trinity', title: 'Trinity', file: 'TRINITY.DAT' },
-]
 
 export function startApp(root: HTMLElement): void {
   showPicker(root)
@@ -69,11 +56,8 @@ function showPicker(root: HTMLElement): void {
 
     const title = document.createElement('span')
     title.textContent = game.title
-    const subtitle = document.createElement('span')
-    subtitle.className = 'subtitle'
-    subtitle.textContent = game.file
 
-    button.append(title, subtitle)
+    button.append(title)
     button.addEventListener('click', () => {
       void launchGame(root, game)
     })
@@ -156,10 +140,14 @@ async function launchGame(root: HTMLElement, game: GameEntry): Promise<void> {
 
   const response = await fetch(`data/${game.file}`)
   if (!response.ok) {
-    screen.printStr(`\n[Could not load ${game.file}: HTTP ${response.status}]\n`)
+    screen.printStr(`\n[Could not load ${game.title}: HTTP ${response.status}]\n`)
     return
   }
-  const gameData = new Uint8Array(await response.arrayBuffer())
+  // Story files are served XOR-obfuscated (see src/ui/games.ts) so a plain
+  // download doesn't hand out a working copy; decode before use, unless this
+  // particular entry opts out (e.g. a genuinely freeware or local test file).
+  const rawData = new Uint8Array(await response.arrayBuffer())
+  const gameData = game.obfuscated ? xorFF(rawData) : rawData
   const gameId = gameIdFor(gameData)
   const saveHandler = new IndexedDbSaveHandler(gameId)
   mountSaveControls(sidebar, screen, saveHandler)

@@ -11,3 +11,8 @@ yarn-error.log*
 .pnp.js
 
 .vscode/*
+
+# Original plaintext story files -- never committed. Obfuscated copies for
+# the actual deployment are generated into public/data/ by
+# scripts/obfuscate-data.mjs.
+/data-source
